@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOC 2026 - Operational Readiness</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-green: #00ff41;
+            --dark-bg: #0d0208;
+            --glitch-red: #ff0000;
+            --glitch-blue: #00ffff;
+        }
+
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            font-family: 'Fira Code', monospace;
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
+        }
+
+        canvas#matrix {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            opacity: 0.15;
+        }
+
+        .soc-container {
+            position: relative;
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .soc-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr 1fr auto;
+                overflow-y: auto;
+            }
+        }
+
+        .glass-panel {
+            background: rgba(0, 20, 0, 0.7);
+            border: 1px solid var(--neon-green);
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+            padding: 15px;
+            position: relative;
+        }
+
+        .glitch {
+            position: relative;
+            font-size: 3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0.05em 0 0 var(--glitch-red), -0.05em -0.025em 0 var(--glitch-blue);
+            animation: glitch 1s infinite;
+        }
+
+        @keyframes glitch {
+            0% { text-shadow: 0.05em 0 0 var(--glitch-red), -0.05em -0.025em 0 var(--glitch-blue); }
+            14% { text-shadow: 0.05em 0 0 var(--glitch-red), -0.05em -0.025em 0 var(--glitch-blue); }
+            15% { text-shadow: -0.05em -0.025em 0 var(--glitch-red), 0.025em 0.025em 0 var(--glitch-blue); }
+            49% { text-shadow: -0.05em -0.025em 0 var(--glitch-red), 0.025em 0.025em 0 var(--glitch-blue); }
+            50% { text-shadow: 0.025em 0.05em 0 var(--glitch-red), 0.05em 0 0 var(--glitch-blue); }
+            99% { text-shadow: 0.025em 0.05em 0 var(--glitch-red), 0.05em 0 0 var(--glitch-blue); }
+            100% { text-shadow: -0.025em 0 0 var(--glitch-red), -0.025em -0.025em 0 var(--glitch-blue); }
+        }
+
+        .terminal-scroll {
+            font-size: 0.85rem;
+            height: 200px;
+            overflow-y: hidden;
+            border-top: 1px solid rgba(0, 255, 65, 0.3);
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+
+        .scan-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #111;
+            border: 1px solid var(--neon-green);
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .scan-bar-fill {
+            height: 100%;
+            background: var(--neon-green);
+            width: 0%;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .btn-execute {
+            background: transparent;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            padding: 10px 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-execute:hover {
+            background: var(--neon-green);
+            color: var(--dark-bg);
+            box-shadow: 0 0 20px var(--neon-green);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+            background: var(--neon-green);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #overlay-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+        }
+
+        .system-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 101;
+            display: none;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        .signature {
+            border-left: 2px solid var(--neon-green);
+            padding-left: 15px;
+            margin-top: 10px;
+            font-style: italic;
+            background: rgba(0, 255, 65, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrix"></canvas>
+
+    <div id="overlay-flash"></div>
+
+    <div class="soc-container">
+        <!-- Header Section -->
+        <header class="glass-panel flex justify-between items-center col-span-full">
+            <div>
+                <h1 class="text-xl font-bold tracking-widest"><span class="status-dot"></span>SYS_OP: YEAR_EVOLUTION_2026</h1>
+                <p class="text-xs opacity-70">LOCATION: GLOBAL_NETWORK_NODE | AUTH: ADMIN</p>
+            </div>
+            <div class="text-right">
+                <p id="clock" class="text-lg"></p>
+                <p class="text-xs">Uptime: 2025.364.23:59:59</p>
+            </div>
+        </header>
+
+        <!-- Main Dashboard -->
+        <main class="glass-panel flex flex-col justify-center items-center text-center">
+            <div class="glitch mb-4" data-text="HAPPY NEW YEAR">HAPPY NEW YEAR</div>
+            <div class="text-6xl font-bold mb-4">2026</div>
+            
+            <!-- Added signature phrase -->
+            <div class="signature mb-8">
+                <p class="text-lg">Deoule-Allah Madjitoloum Heliodore vous souhaite Bonne et Heureuse Année 2026</p>
+            </div>
+            
+            <div class="w-full max-w-lg">
+                <p class="text-sm mb-2 text-left">SCANNING FUTURE VULNERABILITIES...</p>
+                <div class="scan-bar-container">
+                    <div id="scan-bar" class="scan-bar-fill"></div>
+                </div>
+                <p id="scan-status" class="text-xs text-right opacity-70">INITIATING HEURISTIC ANALYSIS...</p>
+            </div>
+
+            <div class="mt-8 p-6 border border-dashed border-green-800">
+                <code class="text-sm">
+                    const success = new Year(2026);<br>
+                    success.deploy({<br>
+                    &nbsp;&nbsp;from: "Deoule-Allah Madjitoloum Heliodore",<br>
+                    &nbsp;&nbsp;health: "MAX",<br>
+                    &nbsp;&nbsp;joy: Infinity,<br>
+                    &nbsp;&nbsp;security: true<br>
+                    });
+                </code>
+            </div>
+        </main>
+
+        <!-- Sidebar / Logs -->
+        <aside class="glass-panel flex flex-col">
+            <h2 class="text-sm font-bold border-b border-green-900 pb-2 mb-2">SECURITY_LOGS</h2>
+            <div id="terminal" class="terminal-scroll">
+                <!-- Logs will be injected here -->
+            </div>
+            
+            <div class="mt-auto pt-4 border-t border-green-900">
+                <h3 class="text-xs font-bold mb-2">THREAT LEVEL: NEGLIGIBLE</h3>
+                <div class="flex gap-1 h-2">
+                    <div class="flex-1 bg-green-500"></div>
+                    <div class="flex-1 bg-green-500 opacity-50"></div>
+                    <div class="flex-1 bg-green-500 opacity-20"></div>
+                    <div class="flex-1 bg-gray-800"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Action Bar -->
+        <footer class="glass-panel col-span-full flex justify-between items-center">
+            <p class="text-xs">STATUS: SECURE | ENCRYPTION: AES-2026-HAPPY</p>
+            <button class="btn-execute" onclick="executeSystem()">EXECUTE_SUCCESS_PROTCOL.EXE</button>
+        </footer>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="system-modal glass-panel text-center">
+        <h2 class="text-2xl font-bold mb-4">DEPLOYMENT SUCCESSFUL</h2>
+        <p class="mb-6">L'année 2026 a été injectée avec succès dans votre système de vie par <strong>Heliodore</strong>.</p>
+        <div class="text-left text-xs bg-black p-3 mb-4 font-mono">
+            > Optimisme chargé... 100%<br>
+            > Projets lancés... OK<br>
+            > Bonheur compilé sans erreurs.
+        </div>
+        <button class="btn-execute w-full" onclick="closeModal()">FERMER LA SESSION</button>
+    </div>
+
+    <script>
+        // --- Matrix Background ---
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()*&^%";
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(13, 2, 8, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "#00ff41";
+            ctx.font = fontSize + "px monospace";
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        // --- Terminal Logs ---
+        const logs = [
+            "[INFO] Connecting to NODE_2026...",
+            "[SUCCESS] Firewall bypassed for 'Happiness'.",
+            "[USER] Sender identified: Deoule-Allah Madjitoloum Heliodore",
+            "[INFO] Injecting 'Success.dll' into core process.",
+            "[INFO] Establishing secure link to New Year...",
+            "[INFO] Encrypting bad memories (256-bit).",
+            "[INFO] Optimized lifestyle parameters detected.",
+            "[INFO] Scaling joy infrastructure...",
+            "[ALERT] High frequency of laughter detected.",
+            "[INFO] Patching vulnerabilities in 'Sleep Schedule'..."
+        ];
+
+        const terminal = document.getElementById('terminal');
+        let logIndex = 0;
+
+        function addLog() {
+            const p = document.createElement('p');
+            p.className = "mb-1";
+            p.innerHTML = `<span class="opacity-50">[${new Date().toLocaleTimeString()}]</span> ${logs[logIndex % logs.length]}`;
+            terminal.appendChild(p);
+            terminal.scrollTop = terminal.scrollHeight;
+            logIndex++;
+            setTimeout(addLog, Math.random() * 2000 + 500);
+        }
+
+        // --- Scan Bar ---
+        let progress = 0;
+        const scanBar = document.getElementById('scan-bar');
+        const scanStatus = document.getElementById('scan-status');
+        const statuses = [
+            "Scanning vulnerabilities...",
+            "Analyzing happiness metrics...",
+            "Compiling goals...",
+            "Verifying security protocols...",
+            "Finalizing 2026 readiness..."
+        ];
+
+        function updateScan() {
+            progress += 0.2;
+            if (progress > 100) progress = 0;
+            scanBar.style.width = progress + "%";
+            
+            if (Math.floor(progress) % 20 === 0) {
+                scanStatus.innerText = statuses[Math.floor(progress / 20) % statuses.length];
+            }
+            requestAnimationFrame(updateScan);
+        }
+
+        // --- Clock ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleString('fr-FR');
+        }
+
+        // --- Execute Action ---
+        function executeSystem() {
+            const flash = document.getElementById('overlay-flash');
+            flash.style.display = 'block';
+            setTimeout(() => {
+                flash.style.display = 'none';
+                document.getElementById('success-modal').style.display = 'block';
+            }, 150);
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').style.display = 'none';
+        }
+
+        // --- Init ---
+        window.onload = () => {
+            setInterval(drawMatrix, 50);
+            addLog();
+            updateScan();
+            setInterval(updateClock, 1000);
+            updateClock();
+        };
+
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+    </script>
+</body>
+</html>
